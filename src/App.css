@@ -1,0 +1,6 @@
+/* Scoped component layout adjustments */
+.dashboard-view-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
