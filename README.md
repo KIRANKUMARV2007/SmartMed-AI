@@ -4,6 +4,9 @@
 
 The platform combines a modern web application, a Node.js REST API, MongoDB database, and a Python-based machine learning microservice to provide data-driven insights into hospital operations.
 
+🌐 **Live Application:** https://smartmed-ai-rho.vercel.app/
+
+
 ---
 
 ## 🌟 Project Overview
@@ -18,11 +21,9 @@ The system provides:
 - Equipment utilization analysis using machine learning clustering.
 - Intelligent recommendations using classification models.
 - Centralized management of hospital operational information.
-- Real-time communication between the frontend, backend, database, and ML services.
+- Communication between the frontend, backend, database, and ML services.
 
 **Project Goal:** To make hospital operations more efficient, organized, and data-driven through AI and machine learning.
-
----
 
 ## ✨ Key Features
 
@@ -44,7 +45,7 @@ Uses the K-Means clustering algorithm to analyze equipment utilization patterns.
 
 ### 3. Intelligent Recommendation System
 
-Uses a Random Forest classification model to generate recommendations based on the supplied operational and candidate features.
+Uses a Random Forest classification model to generate recommendations based on supplied operational and candidate features.
 
 - Machine learning-based classification.
 - Automated recommendation generation.
@@ -58,8 +59,6 @@ Provides a web-based interface for accessing and managing hospital operational i
 - Backend API integration.
 - Database-backed data management.
 - Integrated machine learning services.
-
----
 
 ## 🧠 AI & Machine Learning Architecture
 
@@ -82,41 +81,39 @@ SmartMed AI uses a separate Python microservice built with FastAPI and Scikit-le
 
 **Model Training Disclosure:** The current machine learning models are trained using synthetic hospital operational data. Their outputs are intended for demonstration and operational decision-support purposes. They are not clinically validated and must not be treated as medical diagnoses or independently relied upon for clinical decisions.
 
----
-
 ## 🏗️ System Architecture
 
 SmartMed AI follows a modular, service-oriented architecture.
 
 ```text
-              USER
-                |
-                v
-       REACT + VITE FRONTEND
-                |
-                | REST API
-                v
-        NODE.JS + EXPRESS
-             BACKEND
-                |
-          +-----+------+
-          |            |
-          v            v
-      MONGODB       PYTHON ML
-       ATLAS        MICROSERVICE
-                       |
-                       v
-                 SCIKIT-LEARN
-                  ML MODELS
-                       |
-                       v
-                 PREDICTIONS
-                       |
-                       v
-                NODE.JS BACKEND
-                       |
-                       v
-                 FRONTEND UI
+                  USER
+                    |
+                    v
+           REACT + VITE FRONTEND
+                    |
+                    | REST API
+                    v
+            NODE.JS + EXPRESS
+                 BACKEND
+                    |
+              +-----+------+
+              |            |
+              v            v
+           MONGODB      PYTHON ML
+            ATLAS       MICROSERVICE
+                            |
+                            v
+                       SCIKIT-LEARN
+                        ML MODELS
+                            |
+                            v
+                        PREDICTIONS
+                            |
+                            v
+                     NODE.JS BACKEND
+                            |
+                            v
+                       FRONTEND UI
 ```
 
 ### Architecture Components
@@ -129,8 +126,6 @@ SmartMed AI follows a modular, service-oriented architecture.
 | ML Service | Python, FastAPI | Machine learning inference |
 | ML Algorithms | Scikit-learn | Predictive and analytical models |
 | Deployment | Vercel, Render | Application hosting |
-
----
 
 ## 🛠️ Technology Stack
 
@@ -165,19 +160,14 @@ SmartMed AI follows a modular, service-oriented architecture.
 - Render
 - MongoDB Atlas
 
----
-
 ## 📁 Project Structure
 
 ```text
 SmartMed-AI/
 │
+├── android/
 ├── public/
-│
 ├── src/
-│   ├── components/
-│   ├── pages/
-│   ├── services/
 │   └── ...
 │
 ├── server/
@@ -202,14 +192,13 @@ SmartMed-AI/
 ├── index.html
 ├── package.json
 ├── vite.config.js
+├── capacitor.config.json
 ├── .env.example
 ├── .gitignore
 └── README.md
 ```
 
 *Note: This is a high-level representation of the repository structure. Some subdirectories and files have been abbreviated.*
-
----
 
 ## ⚙️ Installation and Local Setup
 
@@ -333,8 +322,6 @@ Check its health:
 http://localhost:8000/health
 ```
 
----
-
 ## 🔗 API Services
 
 SmartMed AI uses REST APIs for communication between its frontend, backend, and machine learning components.
@@ -358,13 +345,13 @@ The FastAPI microservice exposes the following endpoints:
 
 The Node.js backend communicates with these ML endpoints through its ML client service.
 
-*For request payloads and response schemas, refer to the corresponding route and service implementation in the repository.*
-
----
+For request payloads and response schemas, refer to the corresponding route and service implementation in the repository.
 
 ## ☁️ Deployment
 
 SmartMed AI uses a distributed deployment architecture.
+
+### Production Architecture
 
 | Component | Hosting Platform |
 |---|---|
@@ -373,37 +360,37 @@ SmartMed AI uses a distributed deployment architecture.
 | Python ML Microservice | Render |
 | Database | MongoDB Atlas |
 
-### Production URLs
+### Live Application
 
-**Frontend:**
+**Frontend — Vercel**
 
 https://smartmed-ai-rho.vercel.app/
 
-**Backend:**
+**Backend — Render**
 
 https://smartmed-backend-i0sl.onrender.com
 
-**Backend Health:**
+**Backend Health Check**
 
 https://smartmed-backend-i0sl.onrender.com/api/health
 
-**ML Microservice:**
+**ML Microservice — Render**
 
 https://smartmed-ml.onrender.com
 
-**ML Health:**
+**ML Health Check**
 
 https://smartmed-ml.onrender.com/health
 
 ### Production Environment Variables
 
-Frontend:
+**Frontend:**
 
 ```env
 VITE_API_BASE_URL=https://smartmed-backend-i0sl.onrender.com/api
 ```
 
-Backend:
+**Backend:**
 
 ```env
 PORT=10000
@@ -417,8 +404,6 @@ The hosting platform provides the appropriate runtime port. Never commit actual 
 
 **Deployment Note:** Render free instances may spin down after inactivity. The first request after an idle period can take longer to respond.
 
----
-
 ## 🔒 Security Considerations
 
 - Environment variables are used for sensitive configuration.
@@ -426,10 +411,7 @@ The hosting platform provides the appropriate runtime port. Never commit actual 
 - Authentication-related functionality uses JWT and password hashing dependencies.
 - CORS is configured to restrict browser access to the permitted frontend origin.
 - Sensitive environment files are excluded from version control.
-
-Never expose database credentials, JWT secrets, or private API keys in public repositories.
-
----
+- Never expose database credentials, JWT secrets, or private API keys in public repositories.
 
 ## 🚀 Future Enhancements
 
@@ -440,8 +422,6 @@ Never expose database credentials, JWT secrets, or private API keys in public re
 - Improve model explainability and prediction transparency.
 - Expand resource optimization and recommendation capabilities.
 - Introduce automated model monitoring and retraining workflows.
-
----
 
 ## 🎯 Project Outcomes
 
@@ -456,8 +436,6 @@ SmartMed AI demonstrates the integration of:
 
 The project aims to demonstrate how modern software engineering and machine learning technologies can work together to improve hospital operational efficiency.
 
----
-
 ## 👨‍💻 Developer
 
 **Kiran Kumar V**
@@ -468,6 +446,7 @@ GitHub: [KIRANKUMARV2007](https://github.com/KIRANKUMARV2007)
 
 Project Repository: [SmartMed AI](https://github.com/KIRANKUMARV2007/SmartMed-AI)
 
+---
 
 ⭐ If you find this project interesting, consider giving the repository a star!
 
