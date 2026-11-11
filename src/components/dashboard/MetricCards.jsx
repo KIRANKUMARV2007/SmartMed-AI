@@ -41,7 +41,7 @@ export default function MetricCards() {
           </div>
         </div>
         <div className="metric-value-row">
-          <span className="metric-value" style={{ color: 'var(--status-ready)' }}>
+          <span className="metric-value">
             {stats.available}
           </span>
           <span className="metric-subtitle">
@@ -62,7 +62,7 @@ export default function MetricCards() {
           </div>
         </div>
         <div className="metric-value-row">
-          <span className="metric-value" style={{ color: 'var(--status-inuse)' }}>
+          <span className="metric-value">
             {stats.inUse}
           </span>
           <span className="metric-subtitle">deployed</span>
@@ -81,7 +81,7 @@ export default function MetricCards() {
           </div>
         </div>
         <div className="metric-value-row">
-          <span className="metric-value" style={{ color: 'var(--status-reserved)' }}>
+          <span className="metric-value">
             {stats.reserved}
           </span>
           <span className="metric-subtitle">held</span>
@@ -105,7 +105,7 @@ export default function MetricCards() {
           </div>
         </div>
         <div className="metric-value-row">
-          <span className="metric-value" style={{ color: stats.stale > 0 ? '#f59e0b' : 'var(--text-primary)' }}>
+          <span className="metric-value">
             {stats.stale}
           </span>
           <span className="metric-subtitle">
@@ -129,7 +129,7 @@ export default function MetricCards() {
           </div>
         </div>
         <div className="metric-value-row">
-          <span className="metric-value" style={{ color: 'var(--status-faulty)' }}>
+          <span className="metric-value">
             {stats.sanitization + stats.maintenance + stats.faulty}
           </span>
           <span className="metric-subtitle">

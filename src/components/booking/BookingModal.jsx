@@ -51,7 +51,7 @@ export default function BookingModal() {
       <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="modal-title">
-            <CalendarCheck size={20} color="var(--accent-cyan)" />
+            <CalendarCheck size={20} color="var(--accent-blue)" />
             <span>Equipment Reservation Hold</span>
           </div>
           <button
@@ -82,21 +82,21 @@ export default function BookingModal() {
                 <strong style={{ fontSize: 14, color: 'var(--text-primary)' }}>
                   {item.name}
                 </strong>
-                <div style={{ fontSize: 11.5, color: 'var(--accent-cyan)', fontFamily: 'JetBrains Mono, monospace' }}>
+                <div style={{ fontSize: 11.5, color: 'var(--accent-blue)', fontFamily: 'JetBrains Mono, monospace' }}>
                   {item.id} • {item.model}
                 </div>
               </div>
 
               <div style={{ textAlign: 'right' }}>
                 <span style={{ fontSize: 11.5, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <MapPin size={12} color="var(--accent-cyan)" />
+                  <MapPin size={12} color="var(--accent-blue)" />
                   {item.currentRoom}
                 </span>
                 <span
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    color: item.status === 'Available' ? 'var(--status-ready)' : '#f59e0b',
+                    color: item.status === 'Available' ? 'var(--status-ready)' : 'var(--status-reserved)',
                   }}
                 >
                   Status: {item.status}
@@ -110,16 +110,16 @@ export default function BookingModal() {
                 style={{
                   padding: '14px 16px',
                   borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                  border: '2px solid rgba(239, 68, 68, 0.5)',
-                  color: '#f87171',
+                  backgroundColor: 'var(--status-faulty-bg)',
+                  border: '1px solid var(--status-faulty-border)',
+                  color: 'var(--status-faulty)',
                   fontSize: 13.5,
                   display: 'flex',
                   alignItems: 'flex-start',
                   gap: 12,
                 }}
               >
-                <ShieldAlert size={22} flexShrink={0} color="#ef4444" />
+                <ShieldAlert size={22} flexShrink={0} color="var(--status-faulty)" />
                 <div>
                   <strong style={{ display: 'block', fontSize: 14, marginBottom: 2 }}>
                     Reservation Blocked:
@@ -135,8 +135,8 @@ export default function BookingModal() {
                 style={{
                   padding: '12px 16px',
                   borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid rgba(16, 185, 129, 0.5)',
+                  backgroundColor: 'var(--status-ready-bg)',
+                  border: '1px solid var(--status-ready-border)',
                   color: 'var(--status-ready)',
                   fontSize: 13,
                   fontWeight: 600,
@@ -151,21 +151,21 @@ export default function BookingModal() {
               style={{
                 padding: '12px 14px',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(0, 180, 216, 0.08)',
-                border: '1px solid rgba(0, 180, 216, 0.25)',
+                backgroundColor: 'var(--accent-blue-light)',
+                border: '1px solid rgba(29, 95, 193, 0.2)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
                 fontSize: 12.5,
               }}
             >
-              <UserCheck size={18} color="var(--accent-cyan)" flexShrink={0} />
+              <UserCheck size={18} color="var(--accent-blue)" flexShrink={0} />
               <div>
                 <span style={{ color: 'var(--text-muted)' }}>Booking Staff Identity:</span>{' '}
                 <strong style={{ color: 'var(--text-primary)' }}>
                   {activePersona.name} ({activePersona.role})
                 </strong>
-                <div style={{ fontSize: 11, color: 'var(--accent-cyan)' }}>
+                <div style={{ fontSize: 11, color: 'var(--accent-blue)' }}>
                   Department: {activePersona.department} • Staff ID: {activePersona.id}
                 </div>
               </div>
@@ -176,13 +176,13 @@ export default function BookingModal() {
               style={{
                 padding: '10px 14px',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(245, 158, 11, 0.08)',
-                border: '1px solid rgba(245, 158, 11, 0.25)',
+                backgroundColor: 'var(--status-reserved-bg)',
+                border: '1px solid var(--status-reserved-border)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
                 fontSize: 12,
-                color: '#fbbf24',
+                color: 'var(--status-reserved)',
               }}
             >
               <Clock size={16} flexShrink={0} />

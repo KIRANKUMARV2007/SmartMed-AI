@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, CheckCircle } from 'lucide-react';
+import { X, Plus, CheckCircle, RotateCcw } from 'lucide-react';
 import { useEquipment } from '../../context/EquipmentContext';
 
 export default function RegisterModal() {
@@ -19,10 +19,11 @@ export default function RegisterModal() {
   });
 
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isRegisterOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
       setError('Please provide an equipment name.');
@@ -37,13 +38,39 @@ export default function RegisterModal() {
       return;
     }
 
-    registerEquipment({
-      ...formData,
-      batteryLevel: formData.hasBattery ? Number(formData.batteryLevel) : null,
-    });
+    try {
+      setIsSubmitting(true);
+      setError('');
 
-    setIsRegisterOpen(false);
-    setError('');
+      const result = await registerEquipment({
+        ...formData,
+        batteryLevel: formData.hasBattery ? Number(formData.batteryLevel) : null,
+      });
+
+      if (result && result.success === false) {
+        setError(result.error || 'Failed to register equipment.');
+        return;
+      }
+
+      setIsRegisterOpen(false);
+      setError('');
+      // Reset form
+      setFormData({
+        name: '',
+        category: 'Ventilator',
+        model: '',
+        serialNumber: '',
+        currentRoom: rooms[0]?.name || 'ER-101 (Trauma Bay 1)',
+        hasBattery: true,
+        batteryLevel: 95,
+        condition: 'Optimal',
+        notes: '',
+      });
+    } catch (err) {
+      setError(err?.message || 'Failed to persist equipment to backend database.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -79,9 +106,9 @@ export default function RegisterModal() {
                 style={{
                   padding: '10px 14px',
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.4)',
-                  color: '#f87171',
+                  backgroundColor: 'var(--status-faulty-bg)',
+                  border: '1px solid var(--status-faulty-border)',
+                  color: 'var(--status-faulty)',
                   fontSize: 13,
                 }}
               >
@@ -209,13 +236,23 @@ export default function RegisterModal() {
             <button
               type="button"
               className="btn-secondary"
-              onClick={() => setIsRegisterOpen(false)}
+              onClick={() => !isSubmitting && setIsRegisterOpen(false)}
+              disabled={isSubmitting}
             >
               Cancel
             </button>
-            <button type="submit" className="btn-primary">
-              <CheckCircle size={16} />
-              Commission Asset
+            <button type="submit" className="btn-primary" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <RotateCcw size={16} className="animate-spin" />
+                  Commissioning Asset...
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={16} />
+                  Commission Asset
+                </>
+              )}
             </button>
           </div>
         </form>

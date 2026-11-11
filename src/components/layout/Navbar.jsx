@@ -1,11 +1,9 @@
-import { Sun, Moon, Bell, UserCheck, QrCode, Menu } from 'lucide-react';
+import { Sun, Moon, Bell, QrCode, Menu, LogOut, Shield, Stethoscope, Activity, Users } from 'lucide-react';
 import { useEquipment } from '../../context/EquipmentContext';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Navbar() {
   const {
-    activePersona,
-    setActivePersona,
-    demoPersonas,
     theme,
     setTheme,
     activeTab,
@@ -14,21 +12,52 @@ export default function Navbar() {
     setIsMobileSidebarOpen,
   } = useEquipment();
 
+  const { user, logout } = useAuth();
+
   const getTabTitle = () => {
     switch (activeTab) {
       case 'dashboard':
-        return 'Executive Overview';
+        return user?.role === 'admin' ? 'Administrative Governance' : 'Clinical Overview';
       case 'inventory':
-        return 'Medical Assets';
+        return 'Medical Equipment Inventory';
       case 'floormap':
-        return 'Ward Floor Map';
+        return 'Hospital Ward Floor Map';
       case 'movements':
-        return 'Movement Audit';
+        return 'Equipment Movement Ledger';
       case 'maintenance':
-        return 'Biomed Maintenance';
+        return 'Biomedical Maintenance Tickets';
+      case 'sanitization':
+        return 'Infection Control & Sanitization';
+      case 'emergency':
+        return 'Emergency Asset Allocation';
+      case 'reports':
+        return 'Operational Reports & Data Export';
+      case 'users':
+        return 'Staff & User Access Control';
+      case 'audit':
+        return 'Regulatory & Operations Audit Trail';
       default:
-        return 'Hospital Management';
+        return 'SmartMed Management';
     }
+  };
+
+  const getRoleIcon = (role) => {
+    switch (role) {
+      case 'admin':
+        return <Shield size={14} color="var(--accent-cyan)" />;
+      case 'doctor':
+        return <Stethoscope size={14} color="var(--status-ready)" />;
+      case 'nurse':
+        return <Activity size={14} color="#93c5fd" />;
+      default:
+        return <Users size={14} color="#fde047" />;
+    }
+  };
+
+  const getCleanUserName = (name) => {
+    if (!name) return 'User';
+    const cleaned = name.replace(/^(Dr\.|Nurse|Mr\.|Ms\.)\s+/i, '').trim();
+    return cleaned.split(/[\s,]+/)[0] || name.split(' ')[0];
   };
 
   return (
@@ -47,7 +76,7 @@ export default function Navbar() {
         <div className="page-title-group">
           <h1>{getTabTitle()}</h1>
           <span className="page-subtitle">
-            SmartMed AI Hospital Asset Geolocation System
+            SmartMed Hospital Asset Geolocation & Governance System
           </span>
         </div>
       </div>
@@ -65,28 +94,18 @@ export default function Navbar() {
           <span className="navbar-btn-text">Scan QR</span>
         </button>
 
-        {/* Prototype Staff Persona Switcher */}
-        <div className="persona-switcher-container" title="Switch between simulated clinical staff and engineer profiles">
-          <UserCheck size={16} color="var(--accent-cyan)" flexShrink={0} />
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <span className="persona-label">Staff Profile:</span>
-            <select
-              className="persona-select"
-              value={activePersona.id}
-              onChange={(e) => {
-                const found = demoPersonas.find((p) => p.id === e.target.value);
-                if (found) setActivePersona(found);
-              }}
-              aria-label="Select Demo Staff Profile"
-            >
-              {demoPersonas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name.split(' ')[0]} ({p.role.split(' ')[0]} — {p.department.split(' ')[0]})
-                </option>
-              ))}
-            </select>
+        {/* Authenticated User Session Badge */}
+        {user && (
+          <div className="user-session-badge" title={`${user.name} (${user.role})`}>
+            {getRoleIcon(user.role)}
+            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+              {getCleanUserName(user.name)}
+            </span>
+            <span className={`user-session-badge-role ${user.role}`}>
+              {user.role}
+            </span>
           </div>
-        </div>
+        )}
 
         {/* Theme Toggle Button */}
         <button
@@ -103,7 +122,7 @@ export default function Navbar() {
         <button
           type="button"
           className="theme-toggle-btn"
-          title="3 active system notifications"
+          title="System notifications"
           style={{ position: 'relative' }}
           aria-label="Notifications"
         >
@@ -121,6 +140,20 @@ export default function Navbar() {
             }}
           />
         </button>
+
+        {/* Sign Out Button */}
+        {user && (
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={logout}
+            title="Sign Out of Session"
+            aria-label="Sign Out"
+            style={{ color: '#fda4af' }}
+          >
+            <LogOut size={17} />
+          </button>
+        )}
       </div>
     </header>
   );

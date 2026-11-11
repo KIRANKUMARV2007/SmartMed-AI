@@ -26,7 +26,7 @@ export default function QRCardModal() {
       >
         <div className="modal-header">
           <div className="modal-title">
-            <QrCode size={18} color="var(--accent-cyan)" />
+            <QrCode size={18} color="var(--accent-blue)" />
             <span>{isEquip ? 'Equipment QR Tag' : 'Room Location Placard'}</span>
           </div>
           <button
@@ -45,18 +45,19 @@ export default function QRCardModal() {
             id="printable-qr-card"
             style={{
               width: '100%',
-              backgroundColor: '#ffffff',
-              color: '#0f172a',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--text-primary)',
               borderRadius: 'var(--radius-lg)',
               padding: 24,
-              boxShadow: '0 4px 15px rgba(0,0,0,0.15)',
+              border: '1px solid var(--border-card)',
+              boxShadow: 'var(--shadow-card)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               gap: 12,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#0284c7' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent-blue)' }}>
               <Activity size={18} />
               <strong style={{ fontSize: 13, letterSpacing: 0.5 }}>SMARTMED AI CLINICAL ASSET</strong>
             </div>
@@ -66,7 +67,7 @@ export default function QRCardModal() {
               style={{
                 padding: 12,
                 backgroundColor: '#ffffff',
-                border: '2px solid #e2e8f0',
+                border: '1px solid var(--border-card)',
                 borderRadius: 'var(--radius-md)',
               }}
             >
@@ -78,23 +79,23 @@ export default function QRCardModal() {
               />
             </div>
 
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: 16, color: '#0f172a' }}>
+            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 800, fontSize: 16, color: 'var(--text-primary)' }}>
               {data.id}
             </div>
 
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#334155' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>
               {data.name}
             </div>
 
             {isEquip ? (
-              <div style={{ fontSize: 11.5, color: '#64748b' }}>
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
                 SN: {data.serialNumber} • Model: {data.model}
-                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, color: '#0284c7', fontWeight: 600 }}>
+                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, color: 'var(--accent-blue)', fontWeight: 600 }}>
                   <MapPin size={12} /> Last-Confirmed: {data.currentRoom}
                 </div>
               </div>
             ) : (
-              <div style={{ fontSize: 11.5, color: '#64748b' }}>
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
                 {data.department} • {data.floor} ({data.wing})
               </div>
             )}
@@ -102,8 +103,8 @@ export default function QRCardModal() {
             <div
               style={{
                 fontSize: 9.5,
-                color: '#94a3b8',
-                borderTop: '1px solid #f1f5f9',
+                color: 'var(--text-muted)',
+                borderTop: '1px solid var(--border-subtle)',
                 paddingTop: 8,
                 width: '100%',
               }}

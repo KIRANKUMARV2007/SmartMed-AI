@@ -1,0 +1,68 @@
+{
+  "model_type": "RandomForestClassifier",
+  "algorithm": "Scikit-learn Pipeline with StandardScaler and RandomForestClassifier",
+  "target": "failure_next_30d (Probability of equipment failure or required maintenance in next 30 days)",
+  "feature_columns": [
+    "operating_hours",
+    "battery_level",
+    "battery_wear_cycles",
+    "days_since_last_sanitization",
+    "days_until_scheduled_maintenance",
+    "condition_code",
+    "category_code",
+    "avg_daily_usage_hours",
+    "historical_fault_count"
+  ],
+  "feature_importances": {
+    "days_until_scheduled_maintenance": 0.6246,
+    "operating_hours": 0.1244,
+    "condition_code": 0.0618,
+    "battery_level": 0.0538,
+    "battery_wear_cycles": 0.0365,
+    "days_since_last_sanitization": 0.0322,
+    "avg_daily_usage_hours": 0.0311,
+    "historical_fault_count": 0.0207,
+    "category_code": 0.015
+  },
+  "n_samples": 1600,
+  "accuracy": 0.8925,
+  "roc_auc": 0.9626594576328461,
+  "classification_report": {
+    "0": {
+      "precision": 0.9307692307692308,
+      "recall": 0.9063670411985019,
+      "f1-score": 0.9184060721062619,
+      "support": 267.0
+    },
+    "1": {
+      "precision": 0.8214285714285714,
+      "recall": 0.8646616541353384,
+      "f1-score": 0.8424908424908425,
+      "support": 133.0
+    },
+    "accuracy": 0.8925,
+    "macro avg": {
+      "precision": 0.8760989010989011,
+      "recall": 0.88551434766692,
+      "f1-score": 0.8804484572985523,
+      "support": 400.0
+    },
+    "weighted avg": {
+      "precision": 0.8944134615384616,
+      "recall": 0.8925,
+      "f1-score": 0.893164258259135,
+      "support": 400.0
+    }
+  },
+  "is_synthetic_trained": true,
+  "data_disclosure": "Trained on domain-modeled synthetic clinical equipment degradation data. Real-world validation required before clinical deployment.",
+  "categories": [
+    "Ventilator",
+    "Defibrillator",
+    "Infusion Pump",
+    "Portable Ultrasound",
+    "ECG Machine",
+    "Patient Monitor",
+    "Transport Wheelchair"
+  ]
+}

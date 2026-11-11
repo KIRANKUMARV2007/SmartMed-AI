@@ -13,39 +13,50 @@ import {
   CalendarCheck,
   ShieldCheck,
   RotateCcw,
+  Edit,
 } from 'lucide-react';
 import { useEquipment } from '../../context/EquipmentContext';
+import { useAuth } from '../../context/AuthContext';
 import ReservationCountdown from '../common/ReservationCountdown';
 
 export default function EquipmentTable() {
   const {
     filteredEquipment,
+    equipment,
     isLocationStale,
     getRelativeTime,
     setInspectingEquipment,
+    setEditingEquipment,
     clearSanitization,
     resetFilters,
     setQRCardTarget,
     setBookingTargetEquipment,
     setHandoverTargetEquipment,
     returnEquipment,
+    dataSource,
+    apiSyncStatus,
+    apiError,
+    refreshEquipment,
+    setDataSource,
   } = useEquipment();
+
+  const { isAdmin, isDoctor, isNurse, isStaff } = useAuth();
 
   // Helper to pick category icon
   const getCategoryIcon = (category) => {
     switch (category) {
       case 'Ventilator':
-        return <Activity size={16} color="var(--accent-cyan)" />;
+        return <Activity size={16} color="var(--status-inuse)" />;
       case 'Defibrillator':
-        return <HeartPulse size={16} color="#ef4444" />;
+        return <HeartPulse size={16} color="var(--status-faulty)" />;
       case 'Infusion Pump':
-        return <Droplets size={16} color="#3b82f6" />;
+        return <Droplets size={16} color="var(--status-inuse)" />;
       case 'Portable Ultrasound':
-        return <Radio size={16} color="#8b5cf6" />;
+        return <Radio size={16} color="var(--status-sanitization)" />;
       case 'ECG Machine':
-        return <HeartPulse size={16} color="#10b981" />;
+        return <HeartPulse size={16} color="var(--status-ready)" />;
       case 'Patient Monitor':
-        return <Activity size={16} color="#06b6d4" />;
+        return <Activity size={16} color="var(--accent-cyan)" />;
       default:
         return <Activity size={16} color="var(--text-muted)" />;
     }
@@ -99,23 +110,85 @@ export default function EquipmentTable() {
             </tr>
           </thead>
           <tbody>
-            {filteredEquipment.length === 0 ? (
+            {apiSyncStatus === 'loading' ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                    <RotateCcw size={28} className="animate-spin" color="var(--accent-cyan)" />
+                    <p style={{ fontWeight: 600, fontSize: 16 }}>Connecting to SmartMed Express Server...</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                      Retrieving live clinical equipment inventory from Express backend
+                    </p>
+                  </div>
+                </td>
+              </tr>
+            ) : dataSource === 'live' && apiSyncStatus === 'error' ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                    <AlertTriangle size={36} color="var(--status-faulty)" />
+                    <p style={{ fontWeight: 600, fontSize: 16, color: 'var(--status-faulty)' }}>
+                      Backend API Connection Failed
+                    </p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: 13, maxWidth: 540 }}>
+                      {apiError || 'The SmartMed server on port 5000 is unavailable or returned an error.'}
+                    </p>
+                    <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        onClick={refreshEquipment}
+                        style={{ padding: '6px 14px', fontSize: '13px' }}
+                      >
+                        <RotateCcw size={13} style={{ marginRight: 6 }} />
+                        Retry Connection
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setDataSource('mock')}
+                        style={{ padding: '6px 14px', fontSize: '13px' }}
+                      >
+                        Revert to Mock Data
+                      </button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredEquipment.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ textAlign: 'center', padding: '48px 20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                    <AlertTriangle size={32} color="#f59e0b" />
-                    <p style={{ fontWeight: 600, fontSize: 16 }}>No equipment found matching criteria</p>
-                    <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                      Try adjusting your search query, status filters, or stale location toggle.
+                    <AlertTriangle size={32} color="var(--status-reserved)" />
+                    <p style={{ fontWeight: 600, fontSize: 16 }}>
+                      {dataSource === 'live' && equipment.length === 0
+                        ? 'Backend database returned 0 equipment records'
+                        : 'No equipment found matching criteria'}
                     </p>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={resetFilters}
-                      style={{ marginTop: 8 }}
-                    >
-                      Reset All Filters
-                    </button>
+                    <p style={{ color: 'var(--text-muted)', fontSize: 13, maxWidth: 500 }}>
+                      {dataSource === 'live' && equipment.length === 0
+                        ? 'The database contains no items yet. Seed the database with sample clinical assets or return to the mock simulation.'
+                        : 'Try adjusting your search query, status filters, or stale location toggle.'}
+                    </p>
+                    {dataSource === 'live' && equipment.length === 0 ? (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => setDataSource('mock')}
+                        style={{ marginTop: 8 }}
+                      >
+                        Switch to Mock Mode
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={resetFilters}
+                        style={{ marginTop: 8 }}
+                      >
+                        Reset All Filters
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -216,7 +289,7 @@ export default function EquipmentTable() {
                           <ReservationCountdown expiresAt={item.reservation.expiresAt} compact />
                         )}
                         {item.status === 'Reserved' && item.reservation && (
-                          <span style={{ fontSize: 10.5, color: '#f59e0b' }}>
+                          <span style={{ fontSize: 10.5, color: 'var(--status-reserved)' }}>
                             For {item.reservation.department}
                           </span>
                         )}
@@ -236,8 +309,21 @@ export default function EquipmentTable() {
                           <QrCode size={14} />
                         </button>
 
-                        {/* Booking Action */}
-                        {item.status === 'Available' && (
+                        {/* Admin Edit Modal */}
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="btn-secondary table-action-btn"
+                            onClick={() => setEditingEquipment(item)}
+                            title="Administrator edit specifications and status"
+                          >
+                            <Edit size={13} />
+                            <span>Edit</span>
+                          </button>
+                        )}
+
+                        {/* Booking Action (Admin, Doctor, Nurse) */}
+                        {item.status === 'Available' && (isAdmin || isDoctor || isNurse) && (
                           <button
                             type="button"
                             className="btn-primary table-action-btn"
@@ -250,14 +336,16 @@ export default function EquipmentTable() {
                         )}
 
                         {/* Handover Action (When Reserved) */}
-                        {item.status === 'Reserved' && (
+                        {item.status === 'Reserved' && (isAdmin || isDoctor || isNurse) && (
                           <button
                             type="button"
                             className="btn-primary table-action-btn"
                             onClick={() => setHandoverTargetEquipment(item)}
                             title="Verify physical custody and transition to In Use"
                             style={{
-                              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                              background: 'var(--status-ready)',
+                              color: '#ffffff',
+                              border: 'none',
                             }}
                           >
                             <ShieldCheck size={14} />
@@ -266,7 +354,7 @@ export default function EquipmentTable() {
                         )}
 
                         {/* Return Action (When In Use) */}
-                        {item.status === 'In Use' && (
+                        {item.status === 'In Use' && (isAdmin || isDoctor || isNurse) && (
                           <button
                             type="button"
                             className="btn-secondary table-action-btn"
@@ -278,8 +366,8 @@ export default function EquipmentTable() {
                           </button>
                         )}
 
-                        {/* Sanitization Clearance */}
-                        {item.status === 'Sanitization Required' && (
+                        {/* Sanitization Clearance (Admin, Nurse, Staff) */}
+                        {item.status === 'Sanitization Required' && (isAdmin || isNurse || isStaff) && (
                           <button
                             type="button"
                             className="btn-clear-san table-action-btn"

@@ -28,7 +28,7 @@ export default function FloorMapPreview() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span className="panel-helper-text" style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
             <Info size={12} />
-            Counts show last-confirmed items, not live physical telemetry
+            Counts show last-confirmed items, not live physical tracking
           </span>
           <button
             type="button"

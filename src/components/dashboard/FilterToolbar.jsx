@@ -119,11 +119,12 @@ export default function FilterToolbar() {
           {stats.stale > 0 && (
             <span
               style={{
-                background: showStaleOnly ? '#0b132b' : 'rgba(245, 158, 11, 0.3)',
-                color: showStaleOnly ? '#fbbf24' : '#fbbf24',
+                background: 'var(--status-reserved-bg)',
+                color: 'var(--status-reserved)',
                 padding: '2px 6px',
                 borderRadius: 'var(--radius-full)',
                 fontSize: 11,
+                fontWeight: 700,
               }}
             >
               {stats.stale}

@@ -6,17 +6,61 @@ import {
   INITIAL_MAINTENANCE_ALERTS,
   DEMO_PERSONAS,
 } from '../data/mockData';
+import { equipmentApi, ApiClientError } from '../api';
 
 const EquipmentContext = createContext(null);
 
 export function EquipmentProvider({ children }) {
-  const [equipment, setEquipment] = useState(INITIAL_EQUIPMENT);
+  // Determine initial data source: default to 'live', or user's explicit preference
+  const [dataSource, setDataSourceState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('smartmed_dataSource');
+      if (saved === 'mock' || saved === 'live') {
+        return saved;
+      }
+    }
+    return 'live';
+  });
+
+  const [equipment, setEquipment] = useState(() => {
+    const initialMode =
+      typeof window !== 'undefined' && localStorage.getItem('smartmed_dataSource') === 'mock'
+        ? 'mock'
+        : 'live';
+    return initialMode === 'mock' ? INITIAL_EQUIPMENT : [];
+  });
+
   const [rooms] = useState(HOSPITAL_ROOMS);
   const [movements, setMovements] = useState(INITIAL_MOVEMENTS);
-  const [maintenanceAlerts] = useState(INITIAL_MAINTENANCE_ALERTS);
+  const [maintenanceAlerts, setMaintenanceAlerts] = useState(INITIAL_MAINTENANCE_ALERTS);
   const [activePersona, setActivePersona] = useState(DEMO_PERSONAS[0]);
   const [staleThresholdHours, setStaleThresholdHours] = useState(6);
-  const [theme, setThemeState] = useState('dark');
+  const [theme, setThemeState] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('smartmed_theme');
+        if (saved === 'dark' || saved === 'light') {
+          return saved;
+        }
+      } catch {
+        // Fallback to light mode on error
+      }
+    }
+    return 'light';
+  });
+
+  // Controlled Data Source & Live API Integration
+  const [apiSyncStatus, setApiSyncStatus] = useState(() => {
+    const initialMode =
+      typeof window !== 'undefined' && localStorage.getItem('smartmed_dataSource') === 'mock'
+        ? 'mock'
+        : 'live';
+    return initialMode === 'live' ? 'loading' : 'idle';
+  });
+  const [apiError, setApiError] = useState(null);
+  const [apiLastSyncedAt, setApiLastSyncedAt] = useState(null);
+  const [isBackendDegraded, setIsBackendDegraded] = useState(false);
+  const [backendHealthInfo, setBackendHealthInfo] = useState(null);
 
   // Navigation & Filtering
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -28,6 +72,7 @@ export function EquipmentProvider({ children }) {
 
   // Modal inspection & interactive dialog states
   const [inspectingEquipment, setInspectingEquipment] = useState(null);
+  const [editingEquipment, setEditingEquipment] = useState(null);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -35,15 +80,31 @@ export function EquipmentProvider({ children }) {
   const [bookingTargetEquipment, setBookingTargetEquipment] = useState(null);
   const [handoverTargetEquipment, setHandoverTargetEquipment] = useState(null);
   const [qrCardTarget, setQRCardTarget] = useState(null); // { type: 'equipment' | 'room', data: item }
+  const [pendingMovementEquipment, setPendingMovementEquipment] = useState(null);
 
-  // Theme synchronization with HTML data-theme attribute
+  // Theme synchronization with HTML data-theme attribute and localStorage persistence
   const setTheme = useCallback((newTheme) => {
-    setThemeState(newTheme);
-    document.documentElement.setAttribute('data-theme', newTheme);
+    const validTheme = newTheme === 'dark' ? 'dark' : 'light';
+    setThemeState(validTheme);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('smartmed_theme', validTheme);
+      } catch {
+        // Ignore storage errors in restricted contexts
+      }
+      document.documentElement.setAttribute('data-theme', validTheme);
+    }
   }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('smartmed_theme', theme);
+      } catch {
+        // Ignore storage errors
+      }
+    }
   }, [theme]);
 
   // Stale Location Check: true if last confirmed older than threshold
@@ -359,7 +420,12 @@ export function EquipmentProvider({ children }) {
         return { success: false, error: 'Equipment not found' };
       }
 
-      const destRoom = rooms.find((r) => r.name === destinationRoomName);
+      const destRoom = rooms.find(
+        (r) =>
+          r.name === destinationRoomName ||
+          r.id === destinationRoomName ||
+          r.name.toLowerCase() === destinationRoomName?.toLowerCase()
+      );
       if (!destRoom) {
         return { success: false, error: 'Destination room not recognized' };
       }
@@ -411,6 +477,20 @@ export function EquipmentProvider({ children }) {
 
       setMovements((prev) => [movementLog, ...prev]);
 
+      // If in live backend mode, dispatch to Express API
+      if (dataSource === 'live') {
+        equipmentApi
+          .moveEquipment(equipmentId, {
+            toRoom: destRoom.name,
+            staffId: activePersona.id,
+            staffName: activePersona.name,
+            staffRole: activePersona.role,
+          })
+          .catch((err) => {
+            console.warn('[SmartMed Live Sync] Background movement sync failed:', err);
+          });
+      }
+
       return {
         success: true,
         fromRoom: prevRoom,
@@ -418,7 +498,7 @@ export function EquipmentProvider({ children }) {
         equipment: updatedItem,
       };
     },
-    [equipment, rooms, activePersona]
+    [equipment, rooms, activePersona, dataSource]
   );
 
   // =========================================================================
@@ -550,42 +630,150 @@ export function EquipmentProvider({ children }) {
     };
   }, [equipment, isLocationStale]);
 
-  // Action: Register new equipment
+  // Action: Register new equipment (persisting to MongoDB in live mode or local state in mock mode)
   const registerEquipment = useCallback(
-    (newItem) => {
-      const id = `EQ-${newItem.category.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
+    async (newItem) => {
+      const generatedId =
+        newItem.id ||
+        `EQ-${newItem.category.slice(0, 3).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
+
       const fullItem = {
         ...newItem,
-        id,
-        status: 'Available',
+        id: generatedId,
+        status: newItem.status || 'Available',
         lastConfirmedAt: new Date().toISOString(),
         lastConfirmedBy: activePersona.name,
-        sanitizationStatus: 'CLEARED',
+        sanitizationStatus: newItem.sanitizationStatus || 'CLEARED',
         operatingHours: 0,
         totalUsageSessions: 0,
         reservation: null,
       };
 
-      setEquipment((prev) => [fullItem, ...prev]);
+      if (dataSource === 'live') {
+        const payload = {
+          id: fullItem.id,
+          name: fullItem.name,
+          category: fullItem.category,
+          model: fullItem.model,
+          serialNumber: fullItem.serialNumber,
+          currentRoom: fullItem.currentRoom,
+          roomId: fullItem.roomId || null,
+          batteryLevel: fullItem.batteryLevel,
+          hasBattery: fullItem.hasBattery,
+          condition: fullItem.condition || 'Optimal',
+          notes: fullItem.notes || '',
+          registeredBy: activePersona.name,
+          staffId: activePersona.id,
+          staffRole: activePersona.role,
+        };
 
-      const movementLog = {
-        id: `MOV-${Date.now().toString().slice(-4)}`,
-        equipmentId: id,
-        equipmentName: fullItem.name,
-        fromRoom: 'Inventory Ingestion / Warehouse',
-        toRoom: fullItem.currentRoom,
-        timestamp: new Date().toISOString(),
-        staffId: activePersona.id,
-        staffName: activePersona.name,
-        staffRole: activePersona.role,
-        type: 'Asset Commissioning',
-        details: 'Initial onboarding and calibration check completed.',
-      };
-      setMovements((prev) => [movementLog, ...prev]);
+        const createdFromApi = await equipmentApi.createEquipment(payload);
 
-      return fullItem;
+        const savedItem = {
+          ...fullItem,
+          ...(createdFromApi || {}),
+          id: (createdFromApi && createdFromApi.id) || fullItem.id,
+        };
+
+        setEquipment((prev) => [savedItem, ...prev.filter((e) => e.id !== savedItem.id)]);
+
+        const movementLog = {
+          id: `MOV-${Date.now().toString().slice(-4)}`,
+          equipmentId: savedItem.id,
+          equipmentName: savedItem.name,
+          fromRoom: 'Asset Commissioning',
+          toRoom: savedItem.currentRoom,
+          timestamp: new Date().toISOString(),
+          staffId: activePersona.id,
+          staffName: activePersona.name,
+          staffRole: activePersona.role,
+          type: 'Asset Commissioning',
+          details: `New asset registered and assigned to ${savedItem.currentRoom} in MongoDB Atlas.`,
+        };
+        setMovements((prev) => [movementLog, ...prev]);
+
+        return { success: true, item: savedItem };
+      } else {
+        // Mock mode: local memory simulation
+        setEquipment((prev) => [fullItem, ...prev]);
+
+        const movementLog = {
+          id: `MOV-${Date.now().toString().slice(-4)}`,
+          equipmentId: fullItem.id,
+          equipmentName: fullItem.name,
+          fromRoom: 'Inventory Ingestion / Warehouse',
+          toRoom: fullItem.currentRoom,
+          timestamp: new Date().toISOString(),
+          staffId: activePersona.id,
+          staffName: activePersona.name,
+          staffRole: activePersona.role,
+          type: 'Asset Commissioning',
+          details: 'Initial onboarding and calibration check completed.',
+        };
+        setMovements((prev) => [movementLog, ...prev]);
+
+        return { success: true, item: fullItem };
+      }
     },
-    [activePersona]
+    [activePersona, dataSource]
+  );
+
+  // Action: Admin Edit Equipment
+  const updateEquipment = useCallback(
+    async (equipmentId, updateData) => {
+      if (dataSource === 'live') {
+        const updatedFromApi = await equipmentApi.updateEquipment(equipmentId, updateData);
+        setEquipment((prev) =>
+          prev.map((item) => (item.id === equipmentId ? { ...item, ...updatedFromApi } : item))
+        );
+        setInspectingEquipment((prev) =>
+          prev && prev.id === equipmentId ? { ...prev, ...updatedFromApi } : prev
+        );
+        return { success: true, item: updatedFromApi };
+      } else {
+        setEquipment((prev) =>
+          prev.map((item) => (item.id === equipmentId ? { ...item, ...updateData } : item))
+        );
+        setInspectingEquipment((prev) =>
+          prev && prev.id === equipmentId ? { ...prev, ...updateData } : prev
+        );
+        return { success: true, item: { id: equipmentId, ...updateData } };
+      }
+    },
+    [dataSource]
+  );
+
+  // Action: Admin Safe Decommission / Delete Equipment
+  const deleteEquipment = useCallback(
+    async (equipmentId) => {
+      if (dataSource === 'live') {
+        await equipmentApi.deleteEquipment(equipmentId);
+      }
+      setEquipment((prev) => prev.filter((item) => item.id !== equipmentId));
+      setInspectingEquipment((prev) => (prev && prev.id === equipmentId ? null : prev));
+      setEditingEquipment((prev) => (prev && prev.id === equipmentId ? null : prev));
+      return { success: true, deletedId: equipmentId };
+    },
+    [dataSource]
+  );
+
+  // Action: Admin Status Modification / Deactivation
+  const updateEquipmentStatus = useCallback(
+    async (equipmentId, status, notes = '') => {
+      if (dataSource === 'live') {
+        const updated = await equipmentApi.updateEquipmentStatus(equipmentId, status, notes);
+        setEquipment((prev) =>
+          prev.map((item) => (item.id === equipmentId ? { ...item, ...updated } : item))
+        );
+        return { success: true, item: updated };
+      } else {
+        setEquipment((prev) =>
+          prev.map((item) => (item.id === equipmentId ? { ...item, status, notes } : item))
+        );
+        return { success: true };
+      }
+    },
+    [dataSource]
   );
 
   // Action: Clear sanitization
@@ -632,6 +820,137 @@ export function EquipmentProvider({ children }) {
     [activePersona, equipment]
   );
 
+  // Action: Clear maintenance and restore to Available
+  const clearMaintenance = useCallback(
+    (equipmentId, resolutionNotes = 'Biomedical repair and safety inspection verified.') => {
+      const equipItem = equipment.find((e) => e.id === equipmentId);
+      if (!equipItem) return;
+
+      const nowIso = new Date().toISOString();
+
+      setEquipment((prev) =>
+        prev.map((item) => {
+          if (item.id === equipmentId) {
+            return {
+              ...item,
+              status: 'Available',
+              condition: 'Optimal',
+              notes: `Repaired & Recalibrated: ${resolutionNotes}`,
+              lastConfirmedAt: nowIso,
+              lastConfirmedBy: activePersona.name,
+            };
+          }
+          return item;
+        })
+      );
+
+      // Resolve matching maintenance alerts
+      setMaintenanceAlerts((prev) =>
+        prev.map((a) =>
+          a.equipmentId === equipmentId ? { ...a, status: 'RESOLVED' } : a
+        )
+      );
+
+      setMovements((prev) => [
+        {
+          id: `AUD-${Date.now().toString().slice(-4)}`,
+          equipmentId,
+          equipmentName: equipItem.name,
+          fromRoom: equipItem.currentRoom,
+          toRoom: equipItem.currentRoom,
+          timestamp: nowIso,
+          staffId: activePersona.id,
+          staffName: activePersona.name,
+          staffRole: activePersona.role,
+          type: 'Biomedical Maintenance Cleared',
+          details: `Safety inspection signed off by ${activePersona.name} (${activePersona.role}). Status restored to Available.`,
+        },
+        ...prev,
+      ]);
+    },
+    [activePersona, equipment]
+  );
+
+  // Controlled API Sync: Fetch equipment from Express backend
+  const fetchEquipmentFromBackend = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) {
+      setApiSyncStatus('loading');
+      setApiError(null);
+    }
+
+    try {
+      // 1. Health check to detect backend reachability and DB state
+      let health = null;
+      try {
+        health = await equipmentApi.checkHealth();
+        setBackendHealthInfo(health);
+        setIsBackendDegraded(!health.database?.connected);
+      } catch (healthErr) {
+        setBackendHealthInfo(null);
+        setIsBackendDegraded(false);
+        throw healthErr;
+      }
+
+      // 2. Fetch live equipment list from GET /api/equipment
+      const items = await equipmentApi.getEquipment();
+
+      if (!Array.isArray(items)) {
+        throw new Error('API returned invalid data format: expected an array of equipment items.');
+      }
+
+      setEquipment(items);
+      setApiSyncStatus('success');
+      setApiError(null);
+      setApiLastSyncedAt(new Date().toISOString());
+      return { success: true, count: items.length, items };
+    } catch (err) {
+      setApiSyncStatus('error');
+      const errorMsg =
+        err instanceof ApiClientError
+          ? err.message
+          : err.message || 'Failed to connect to SmartMed API server.';
+      setApiError(errorMsg);
+      // Explicitly preserve failure state — never silently fake success
+      return { success: false, error: errorMsg };
+    }
+  }, []);
+
+  // Switch between Mock simulation and Live API mode with persistence
+  const setDataSource = useCallback(
+    (newMode) => {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('smartmed_dataSource', newMode);
+      }
+      if (newMode === 'live') {
+        setDataSourceState('live');
+        fetchEquipmentFromBackend();
+      } else {
+        setDataSourceState('mock');
+        setEquipment(INITIAL_EQUIPMENT);
+        setApiSyncStatus('idle');
+        setApiError(null);
+      }
+    },
+    [fetchEquipmentFromBackend]
+  );
+
+  // Auto-fetch equipment from backend on mount and whenever dataSource is 'live'
+  useEffect(() => {
+    if (dataSource === 'live') {
+      fetchEquipmentFromBackend();
+    }
+  }, [dataSource, fetchEquipmentFromBackend]);
+
+  // Refresh equipment list based on current active data source
+  const refreshEquipment = useCallback(() => {
+    if (dataSource === 'live') {
+      return fetchEquipmentFromBackend();
+    } else {
+      setEquipment(INITIAL_EQUIPMENT);
+      return Promise.resolve({ success: true, count: INITIAL_EQUIPMENT.length });
+    }
+  }, [dataSource, fetchEquipmentFromBackend]);
+
   const resetFilters = useCallback(() => {
     setSearchQuery('');
     setSelectedCategory('All');
@@ -668,6 +987,11 @@ export function EquipmentProvider({ children }) {
     stats,
     inspectingEquipment,
     setInspectingEquipment,
+    editingEquipment,
+    setEditingEquipment,
+    updateEquipment,
+    deleteEquipment,
+    updateEquipmentStatus,
     isRegisterOpen,
     setIsRegisterOpen,
     isQRScannerOpen,
@@ -686,12 +1010,26 @@ export function EquipmentProvider({ children }) {
     getRelativeTime,
     registerEquipment,
     clearSanitization,
+    clearMaintenance,
     resetFilters,
     bookEquipment,
     cancelReservation,
     confirmHandover,
     returnEquipment,
     executeDualScanMovement,
+    pendingMovementEquipment,
+    setPendingMovementEquipment,
+    // Backend API integration properties
+    dataSource,
+    setDataSource,
+    isMockMode: dataSource === 'mock',
+    apiSyncStatus,
+    apiError,
+    apiLastSyncedAt,
+    isBackendDegraded,
+    backendHealthInfo,
+    fetchEquipmentFromBackend,
+    refreshEquipment,
   };
 
   return <EquipmentContext.Provider value={value}>{children}</EquipmentContext.Provider>;

@@ -1,0 +1,61 @@
+{
+  "model_type": "RandomForestClassifier",
+  "algorithm": "Scikit-learn Pipeline with StandardScaler and RandomForestClassifier",
+  "target": "is_preferred_candidate (Clinical suitability score 0-100 derived from model probability)",
+  "feature_columns": [
+    "transit_distance_meters",
+    "estimated_transit_minutes",
+    "battery_level",
+    "verified_runtime_minutes",
+    "operating_hours",
+    "condition_code",
+    "urgency_code",
+    "capability_match_ratio",
+    "floor_change_count",
+    "is_runtime_verified"
+  ],
+  "feature_importances": {
+    "transit_distance_meters": 0.2221,
+    "estimated_transit_minutes": 0.2218,
+    "battery_level": 0.1969,
+    "verified_runtime_minutes": 0.1698,
+    "urgency_code": 0.0789,
+    "operating_hours": 0.0428,
+    "condition_code": 0.037,
+    "is_runtime_verified": 0.015,
+    "capability_match_ratio": 0.0081,
+    "floor_change_count": 0.0077
+  },
+  "n_samples": 2200,
+  "accuracy": 0.8472727272727273,
+  "roc_auc": 0.9365195282916802,
+  "classification_report": {
+    "0": {
+      "precision": 0.8571428571428571,
+      "recall": 0.7692307692307693,
+      "f1-score": 0.8108108108108109,
+      "support": 234.0
+    },
+    "1": {
+      "precision": 0.8411764705882353,
+      "recall": 0.9050632911392406,
+      "f1-score": 0.8719512195121951,
+      "support": 316.0
+    },
+    "accuracy": 0.8472727272727273,
+    "macro avg": {
+      "precision": 0.8491596638655462,
+      "recall": 0.8371470301850049,
+      "f1-score": 0.841381015161503,
+      "support": 550.0
+    },
+    "weighted avg": {
+      "precision": 0.8479694423223835,
+      "recall": 0.8472727272727273,
+      "f1-score": 0.8459387547192426,
+      "support": 550.0
+    }
+  },
+  "is_synthetic_trained": true,
+  "data_disclosure": "Trained on synthetic clinical decision support preference data. Clinical discretion remains mandatory."
+}

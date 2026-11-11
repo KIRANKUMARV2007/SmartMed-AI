@@ -1,0 +1,92 @@
+{
+  "model_type": "KMeans",
+  "algorithm": "Scikit-learn StandardScaler + KMeans(k=4, n_init=15)",
+  "n_clusters": 4,
+  "silhouette_score": 0.48334229989207794,
+  "feature_columns": [
+    "operating_hours",
+    "total_usage_sessions",
+    "hours_per_session",
+    "movement_frequency_per_month",
+    "idle_ratio",
+    "turnaround_time_hours"
+  ],
+  "cluster_mapping": {
+    "1": "UNDERUTILIZED",
+    "2": "OVERUTILIZED",
+    "3": "HIGH_MOBILITY",
+    "0": "BALANCED"
+  },
+  "cluster_definitions": {
+    "1": {
+      "cluster_id": 1,
+      "profile_key": "UNDERUTILIZED",
+      "name": "Underutilized / Idle",
+      "description": "Asset experiences prolonged inactivity with idle ratios exceeding 70% of clinical deployment time.",
+      "risk_level": "MODERATE",
+      "action_recommendation": "Reallocate asset to high-demand units (e.g., ICU, Emergency) or return to central pool.",
+      "color": "#f59e0b",
+      "centroid_benchmarks": {
+        "operating_hours": 495.99,
+        "total_usage_sessions": 27.65,
+        "hours_per_session": 16.76,
+        "movement_frequency_per_month": 1.99,
+        "idle_ratio": 0.82,
+        "turnaround_time_hours": 22.35
+      }
+    },
+    "2": {
+      "cluster_id": 2,
+      "profile_key": "OVERUTILIZED",
+      "name": "Overutilized / High Wear",
+      "description": "High continuous operating hours with minimal idle time. High mechanical wear and bottleneck risk.",
+      "risk_level": "HIGH",
+      "action_recommendation": "Rotate asset with standby inventory to prevent premature component breakdown; schedule preventative calibration.",
+      "color": "#ef4444",
+      "centroid_benchmarks": {
+        "operating_hours": 3385.3,
+        "total_usage_sessions": 259.44,
+        "hours_per_session": 13.36,
+        "movement_frequency_per_month": 8.92,
+        "idle_ratio": 0.23,
+        "turnaround_time_hours": 2.26
+      }
+    },
+    "3": {
+      "cluster_id": 3,
+      "profile_key": "HIGH_MOBILITY",
+      "name": "High Turnaround / Rapid Relocation",
+      "description": "Frequent inter-departmental transfers, rapid turnaround (< 2h), and surge emergency utilization.",
+      "risk_level": "LOW",
+      "action_recommendation": "Ensure battery readiness protocols and dual-QR transit tracking remain strictly logged.",
+      "color": "#38bdf8",
+      "centroid_benchmarks": {
+        "operating_hours": 2047.91,
+        "total_usage_sessions": 209.53,
+        "hours_per_session": 9.97,
+        "movement_frequency_per_month": 18.0,
+        "idle_ratio": 0.38,
+        "turnaround_time_hours": 1.8
+      }
+    },
+    "0": {
+      "cluster_id": 0,
+      "profile_key": "BALANCED",
+      "name": "Optimal / Balanced",
+      "description": "Consistent clinical utilization aligned with departmental procedure quotas and maintenance schedules.",
+      "risk_level": "LOW",
+      "action_recommendation": "Maintain current deployment protocol. Routine biomedical checkups suffice.",
+      "color": "#10b981",
+      "centroid_benchmarks": {
+        "operating_hours": 1846.58,
+        "total_usage_sessions": 132.07,
+        "hours_per_session": 14.16,
+        "movement_frequency_per_month": 5.23,
+        "idle_ratio": 0.47,
+        "turnaround_time_hours": 5.4
+      }
+    }
+  },
+  "is_synthetic_trained": true,
+  "data_disclosure": "Trained on synthetic clinical device utilization records. Cluster assignments reflect simulated hospital utilization patterns."
+}

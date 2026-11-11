@@ -57,9 +57,9 @@ export default function EquipmentDetailModal() {
               style={{
                 padding: '12px 16px',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                color: '#fbbf24',
+                backgroundColor: 'var(--status-reserved-bg)',
+                border: '1px solid var(--status-reserved-border)',
+                color: 'var(--status-reserved)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
@@ -146,15 +146,15 @@ export default function EquipmentDetailModal() {
               style={{
                 padding: '14px 16px',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
+                backgroundColor: 'var(--status-reserved-bg)',
+                border: '1px solid var(--status-reserved-border)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 8,
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontWeight: 700, fontSize: 13, color: '#fbbf24' }}>
+                <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--status-reserved)' }}>
                   Active Reservation Hold
                 </span>
                 <ReservationCountdown expiresAt={item.reservation.expiresAt} />
@@ -172,14 +172,14 @@ export default function EquipmentDetailModal() {
           {/* Real SVG QR Code Token */}
           <div className="qr-preview-box">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 13, color: '#0f172a' }}>
-                <QrCode size={16} color="#0284c7" />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: 13, color: 'var(--text-primary)' }}>
+                <QrCode size={16} color="var(--accent-blue)" />
                 <span>Physical QR Token</span>
               </div>
               <button
                 type="button"
                 className="btn-secondary"
-                style={{ padding: '4px 8px', fontSize: 11, borderColor: '#cbd5e1', color: '#0f172a' }}
+                style={{ padding: '4px 8px', fontSize: 11 }}
                 onClick={() => {
                   setQRCardTarget({ type: 'equipment', data: item });
                   setInspectingEquipment(null);
@@ -194,7 +194,7 @@ export default function EquipmentDetailModal() {
               style={{
                 padding: 10,
                 backgroundColor: '#ffffff',
-                border: '2px solid #e2e8f0',
+                border: '1px solid var(--border-card)',
                 borderRadius: 'var(--radius-md)',
                 marginTop: 6,
               }}
@@ -205,7 +205,7 @@ export default function EquipmentDetailModal() {
                 level="M"
               />
             </div>
-            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: '#64748b' }}>
+            <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text-muted)' }}>
               SMARTMED://EQUIPMENT/{item.id}
             </span>
           </div>
@@ -231,7 +231,7 @@ export default function EquipmentDetailModal() {
               <button
                 type="button"
                 className="btn-primary"
-                style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                style={{ background: 'var(--status-ready)', color: '#ffffff', border: 'none' }}
                 onClick={() => {
                   setHandoverTargetEquipment(item);
                   setInspectingEquipment(null);

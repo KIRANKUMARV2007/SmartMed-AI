@@ -1,5 +1,5 @@
 // Realistic synthetic medical equipment dataset for SmartMed AI Prototype
-// NOTE: All equipment data, telemetry values, and movement timestamps are simulated for demonstration.
+// NOTE: All equipment data, operational status, and movement timestamps are simulated for demonstration.
 
 const now = Date.now();
 const MINUTE = 60 * 1000;
@@ -53,6 +53,7 @@ export const DEMO_PERSONAS = [
 ];
 
 export const HOSPITAL_ROOMS = [
+  // Floor 1
   {
     id: 'RM-ER-101',
     name: 'ER-101 (Trauma Bay 1)',
@@ -72,6 +73,44 @@ export const HOSPITAL_ROOMS = [
     type: 'Emergency',
   },
   {
+    id: 'RM-ER-103',
+    name: 'ER-103 (Triage & Rapid Assessment)',
+    department: 'Emergency Medicine',
+    floor: 'Floor 1',
+    wing: 'East Wing',
+    capacity: 4,
+    type: 'Emergency',
+  },
+  {
+    id: 'RM-ER-104',
+    name: 'ER-104 (Pediatric Emergency)',
+    department: 'Pediatric Emergency',
+    floor: 'Floor 1',
+    wing: 'East Wing',
+    capacity: 2,
+    type: 'Emergency',
+  },
+  {
+    id: 'RM-RAD-101',
+    name: 'Radiology & CT Diagnostic Suite 101',
+    department: 'Diagnostic Imaging',
+    floor: 'Floor 1',
+    wing: 'West Wing',
+    capacity: 1,
+    type: 'General Ward',
+  },
+  {
+    id: 'RM-STOR-F1',
+    name: 'Floor 1 Rapid Equipment Depot',
+    department: 'Asset Logistics',
+    floor: 'Floor 1',
+    wing: 'Central Block',
+    capacity: 15,
+    type: 'Maintenance Bay',
+  },
+
+  // Floor 2
+  {
     id: 'RM-ICU-201',
     name: 'ICU-201 (Bed A)',
     department: 'Intensive Care Unit',
@@ -90,6 +129,15 @@ export const HOSPITAL_ROOMS = [
     type: 'Critical Care',
   },
   {
+    id: 'RM-ICU-203',
+    name: 'ICU-203 (Bed C)',
+    department: 'Intensive Care Unit',
+    floor: 'Floor 2',
+    wing: 'North Wing',
+    capacity: 1,
+    type: 'Critical Care',
+  },
+  {
     id: 'RM-ICU-204',
     name: 'ICU-204 (Negative Pressure Isolation)',
     department: 'Intensive Care Unit',
@@ -98,6 +146,35 @@ export const HOSPITAL_ROOMS = [
     capacity: 1,
     type: 'Critical Care',
   },
+  {
+    id: 'RM-NICU-205',
+    name: 'Neonatal ICU 205',
+    department: 'Neonatal Intensive Care',
+    floor: 'Floor 2',
+    wing: 'South Wing',
+    capacity: 4,
+    type: 'Critical Care',
+  },
+  {
+    id: 'RM-CCU-206',
+    name: 'Cardiac Care Unit 206',
+    department: 'Cardiovascular Care',
+    floor: 'Floor 2',
+    wing: 'South Wing',
+    capacity: 2,
+    type: 'Critical Care',
+  },
+  {
+    id: 'RM-STOR-F2',
+    name: 'Floor 2 Critical Care Equipment Depot',
+    department: 'Critical Care Logistics',
+    floor: 'Floor 2',
+    wing: 'Central Block',
+    capacity: 15,
+    type: 'Maintenance Bay',
+  },
+
+  // Floor 3
   {
     id: 'RM-OT-01',
     name: 'OT-1 (General Surgery Suite)',
@@ -115,6 +192,24 @@ export const HOSPITAL_ROOMS = [
     wing: 'Central Block',
     capacity: 1,
     type: 'Operating Theatre',
+  },
+  {
+    id: 'RM-OT-03',
+    name: 'OT-3 (Orthopedic & Trauma Theatre)',
+    department: 'Surgical Services',
+    floor: 'Floor 3',
+    wing: 'Central Block',
+    capacity: 1,
+    type: 'Operating Theatre',
+  },
+  {
+    id: 'RM-PACU-01',
+    name: 'PACU (Post-Anesthesia Care Unit)',
+    department: 'Post-Anesthesia Care',
+    floor: 'Floor 3',
+    wing: 'Central Block',
+    capacity: 6,
+    type: 'Critical Care',
   },
   {
     id: 'RM-W3A-05',
@@ -135,6 +230,26 @@ export const HOSPITAL_ROOMS = [
     type: 'General Ward',
   },
   {
+    id: 'RM-W3C-20',
+    name: 'Ward 3C (Step-Down Unit 320)',
+    department: 'Step-Down Care',
+    floor: 'Floor 3',
+    wing: 'West Wing',
+    capacity: 4,
+    type: 'General Ward',
+  },
+  {
+    id: 'RM-STOR-F3',
+    name: 'Floor 3 Surgical Supply Depot',
+    department: 'Surgical Logistics',
+    floor: 'Floor 3',
+    wing: 'Central Block',
+    capacity: 12,
+    type: 'Maintenance Bay',
+  },
+
+  // Basement 1
+  {
     id: 'RM-BIOMED-B1',
     name: 'Biomedical Workshop B1',
     department: 'Biomedical Engineering',
@@ -151,6 +266,15 @@ export const HOSPITAL_ROOMS = [
     wing: 'Service Core',
     capacity: 8,
     type: 'Sanitization',
+  },
+  {
+    id: 'RM-STOR-B1',
+    name: 'Central Clean Storage Warehouse',
+    department: 'Central Hospital Supply',
+    floor: 'Basement 1',
+    wing: 'Service Core',
+    capacity: 30,
+    type: 'Maintenance Bay',
   },
 ];
 

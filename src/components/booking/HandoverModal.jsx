@@ -70,7 +70,7 @@ export default function HandoverModal() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <strong style={{ fontSize: 14, color: 'var(--text-primary)' }}>{item.name}</strong>
-                <div style={{ fontSize: 11.5, color: 'var(--accent-cyan)', fontFamily: 'JetBrains Mono, monospace' }}>
+                <div style={{ fontSize: 11.5, color: 'var(--accent-blue)', fontFamily: 'JetBrains Mono, monospace' }}>
                   {item.id} • {item.serialNumber}
                 </div>
               </div>
@@ -79,7 +79,7 @@ export default function HandoverModal() {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12.5, color: 'var(--text-secondary)' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <MapPin size={13} color="var(--accent-cyan)" />
+                <MapPin size={13} color="var(--accent-blue)" />
                 {item.currentRoom}
               </span>
               <span>•</span>
@@ -94,14 +94,14 @@ export default function HandoverModal() {
             style={{
               padding: '14px 16px',
               borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(2, 132, 199, 0.08)',
-              border: '1px solid rgba(2, 132, 199, 0.25)',
+              backgroundColor: 'var(--accent-blue-light)',
+              border: '1px solid rgba(29, 95, 193, 0.2)',
               fontSize: 12.5,
               color: 'var(--text-secondary)',
               lineHeight: 1.5,
             }}
           >
-            <strong style={{ color: 'var(--accent-cyan)', display: 'block', marginBottom: 4 }}>
+            <strong style={{ color: 'var(--accent-blue)', display: 'block', marginBottom: 4 }}>
               Two-Step Custody Governance:
             </strong>
             Reservation holds equipment from being booked by other wards, but does not indicate physical presence. Clinical staff must verify device serial number and physical condition at bedside to transition status to <strong>In Use</strong>.
@@ -136,9 +136,9 @@ export default function HandoverModal() {
               style={{
                 padding: '12px',
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#f87171',
+                backgroundColor: 'var(--status-faulty-bg)',
+                border: '1px solid var(--status-faulty-border)',
+                color: 'var(--status-faulty)',
                 fontSize: 13,
               }}
             >
@@ -151,8 +151,8 @@ export default function HandoverModal() {
               style={{
                 padding: '12px',
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.4)',
+                backgroundColor: 'var(--status-ready-bg)',
+                border: '1px solid var(--status-ready-border)',
                 color: 'var(--status-ready)',
                 fontSize: 13,
                 fontWeight: 600,
@@ -168,7 +168,7 @@ export default function HandoverModal() {
             type="button"
             className="btn-secondary"
             onClick={handleCancelReservation}
-            style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+            style={{ color: 'var(--status-faulty)', borderColor: 'var(--status-faulty-border)', backgroundColor: 'var(--status-faulty-bg)' }}
           >
             Cancel Hold & Release
           </button>
@@ -177,7 +177,7 @@ export default function HandoverModal() {
             className="btn-primary"
             onClick={handleConfirm}
             disabled={isSuccess}
-            style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+            style={{ background: 'var(--status-ready)', color: '#ffffff', border: 'none' }}
           >
             <CheckCircle2 size={16} />
             Confirm Bedside Handover (In Use)

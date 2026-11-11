@@ -25,13 +25,20 @@ export default function QRScannerModal() {
     setInspectingEquipment,
     setBookingTargetEquipment,
     setHandoverTargetEquipment,
+    pendingMovementEquipment,
+    setPendingMovementEquipment,
   } = useEquipment();
 
   // Workflow modes: 'auto-move' (default automatic dual-scan), 'manual-fallback', 'quick-identify'
   const [workflowMode, setWorkflowMode] = useState('auto-move');
 
-  // Remembered equipment for relocation (Step 1)
-  const [pendingEquipment, setPendingEquipment] = useState(null);
+  // Remembered equipment for relocation (Step 1) - persisted in EquipmentContext
+  const pendingEquipment = pendingMovementEquipment;
+  const setPendingEquipment = setPendingMovementEquipment;
+  const pendingEquipmentRef = useRef(pendingMovementEquipment);
+  useEffect(() => {
+    pendingEquipmentRef.current = pendingMovementEquipment;
+  }, [pendingMovementEquipment]);
 
   // Manual fallback room selection
   const [manualRoom, setManualRoom] = useState(null);
@@ -48,7 +55,9 @@ export default function QRScannerModal() {
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState('');
   const html5QrCodeRef = useRef(null);
-  const isHandlingScanRef = useRef(false);
+  const isProcessingRef = useRef(false);
+  const lastScanRef = useRef({ text: '', time: 0 });
+  const handleDecodedQRRef = useRef();
 
   // Simulation selectors
   const [simEquipmentId, setSimEquipmentId] = useState('');
@@ -66,90 +75,156 @@ export default function QRScannerModal() {
     setCameraActive(false);
   }, []);
 
-  // Shared payload decoder
-  const parseQRPayload = (text) => {
-    const cleanText = text.trim();
-    let equipId = null;
-    let roomId = null;
+  // Robust shared payload decoder supporting URIs, plain IDs, room names, and JSON
+  const parseQRPayload = useCallback(
+    (text) => {
+      if (!text || typeof text !== 'string') {
+        return { equipId: null, roomId: null, raw: '' };
+      }
 
-    if (cleanText.includes('SMARTMED://EQUIPMENT/')) {
-      equipId = cleanText.replace('SMARTMED://EQUIPMENT/', '');
-    } else if (cleanText.startsWith('EQ-')) {
-      equipId = cleanText;
-    }
+      const cleanText = text.trim();
+      let equipId = null;
+      let roomId = null;
 
-    if (cleanText.includes('SMARTMED://ROOM/')) {
-      roomId = cleanText.replace('SMARTMED://ROOM/', '');
-    } else if (cleanText.startsWith('RM-')) {
-      roomId = cleanText;
-    }
+      // 1. Try parsing JSON payload if applicable
+      if (cleanText.startsWith('{') && cleanText.endsWith('}')) {
+        try {
+          const parsed = JSON.parse(cleanText);
+          if (parsed.equipmentId || parsed.equipId) {
+            equipId = parsed.equipmentId || parsed.equipId;
+          } else if (parsed.roomId || (parsed.type === 'room' && parsed.id)) {
+            roomId = parsed.roomId || parsed.id;
+          } else if (parsed.type === 'equipment' && parsed.id) {
+            equipId = parsed.id;
+          } else if (parsed.room || parsed.roomName) {
+            roomId = parsed.room || parsed.roomName;
+          }
+        } catch {
+          // not valid JSON, proceed with string parsing
+        }
+      }
 
-    return { equipId, roomId, raw: cleanText };
-  };
+      // 2. URI Protocol Schemes: SMARTMED://EQUIPMENT/id and SMARTMED://ROOM/id
+      if (!equipId && cleanText.includes('SMARTMED://EQUIPMENT/')) {
+        equipId = cleanText.split('SMARTMED://EQUIPMENT/')[1]?.trim();
+      }
+      if (!roomId && cleanText.includes('SMARTMED://ROOM/')) {
+        roomId = cleanText.split('SMARTMED://ROOM/')[1]?.trim();
+      }
 
-  // Perform immediate atomic location update (Requirement 4, 5, 6, 7, 8, 11)
+      // 3. Known ID Prefixes (EQ-*, RM-*)
+      if (!equipId && !roomId) {
+        if (/^EQ-[A-Z0-9-]+$/i.test(cleanText)) {
+          equipId = cleanText.toUpperCase();
+        } else if (/^RM-[A-Z0-9-]+$/i.test(cleanText)) {
+          roomId = cleanText.toUpperCase();
+        }
+      }
+
+      // 4. Registry Fallback: match equipment registry ID or serial number
+      if (!equipId && !roomId) {
+        const matchedEquip = equipment.find(
+          (e) =>
+            e.id.toUpperCase() === cleanText.toUpperCase() ||
+            (e.serialNumber && e.serialNumber.toUpperCase() === cleanText.toUpperCase())
+        );
+        if (matchedEquip) {
+          equipId = matchedEquip.id;
+        } else {
+          // Match room ID or exact/prefix room name (e.g. "OT-2 (Cardiothoracic Theatre)")
+          const matchedRoom = rooms.find(
+            (r) =>
+              r.id.toUpperCase() === cleanText.toUpperCase() ||
+              r.name.toLowerCase() === cleanText.toLowerCase() ||
+              r.name.toLowerCase().startsWith(cleanText.toLowerCase())
+          );
+          if (matchedRoom) {
+            roomId = matchedRoom.id;
+          }
+        }
+      }
+
+      return { equipId, roomId, raw: cleanText };
+    },
+    [equipment, rooms]
+  );
+
+  // Perform immediate atomic location update (Requirements 2, 3, 6, 7)
   const performAutomaticRelocation = useCallback(
     (equipItem, destRoomItem) => {
       setMoveError('');
 
-      // Validation 1: Prevent moving to same room
+      // Guard: Validation 1: Prevent moving to the exact same room
       if (equipItem.currentRoom === destRoomItem.name) {
         setMoveError(`Equipment is already confirmed in ${destRoomItem.name}.`);
+        isProcessingRef.current = false;
         setIsProcessing(false);
         return false;
       }
 
-      // Requirement 8: Never show success before save
+      // Guard: Synchronous lock to prevent duplicate callbacks from rapid camera frames
+      if (isProcessingRef.current) return false;
+      isProcessingRef.current = true;
       setIsProcessing(true);
 
-      const result = executeDualScanMovement(equipItem.id, destRoomItem.name);
+      try {
+        const result = executeDualScanMovement(equipItem.id, destRoomItem.name);
 
-      if (result.success) {
-        // Requirement 7: Show success notification after update is saved
-        setMoveSuccess({
-          equipmentName: result.equipment.name,
-          equipmentId: result.equipment.id,
-          fromRoom: result.fromRoom,
-          toRoom: result.toRoom,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-          staffName: activePersona.name,
-          staffRole: activePersona.role,
-        });
+        if (result.success) {
+          // Requirement 3: Record origin, destination, timestamp, and custodian
+          setMoveSuccess({
+            equipmentName: result.equipment.name,
+            equipmentId: result.equipment.id,
+            fromRoom: result.fromRoom,
+            toRoom: result.toRoom,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            staffName: activePersona.name,
+            staffRole: activePersona.role,
+          });
 
-        // Reset remembered equipment
-        setPendingEquipment(null);
-        setManualRoom(null);
-        setConflictEquipment(null);
-        setIsProcessing(false);
-        return true;
-      } else {
-        setMoveError(result.error || 'Failed to update equipment location.');
-        setIsProcessing(false);
-        return false;
+          // Reset remembered equipment across context and local state
+          setPendingMovementEquipment(null);
+          pendingEquipmentRef.current = null;
+          setManualRoom(null);
+          setConflictEquipment(null);
+          return true;
+        } else {
+          setMoveError(result.error || 'Failed to update equipment location.');
+          return false;
+        }
+      } finally {
+        setTimeout(() => {
+          isProcessingRef.current = false;
+          setIsProcessing(false);
+        }, 600);
       }
     },
-    [executeDualScanMovement, activePersona]
+    [executeDualScanMovement, activePersona, setPendingMovementEquipment]
   );
 
   // Central QR Decoded Handler (used identically by camera & simulator)
   const handleDecodedQR = useCallback(
     (decodedText) => {
-      // Debounce rapid camera frames
-      if (isHandlingScanRef.current || isProcessing) return;
-      isHandlingScanRef.current = true;
-      setTimeout(() => {
-        isHandlingScanRef.current = false;
-      }, 1000);
+      // Guard against rapid duplicate scans
+      const now = Date.now();
+      if (isProcessingRef.current) return;
+      if (lastScanRef.current.text === decodedText && now - lastScanRef.current.time < 1200) {
+        return;
+      }
+      lastScanRef.current = { text: decodedText, time: now };
 
       setMoveError('');
 
       const { equipId, roomId, raw } = parseQRPayload(decodedText);
+      const currentPending = pendingEquipmentRef.current;
 
       // -------------------------------------------------------------
       // CASE 1: EQUIPMENT QR SCANNED
       // -------------------------------------------------------------
       if (equipId) {
-        const foundEquip = equipment.find((e) => e.id === equipId);
+        const foundEquip = equipment.find(
+          (e) => e.id.toUpperCase() === equipId.toUpperCase()
+        );
         if (!foundEquip) {
           setMoveError(`Equipment ID "${equipId}" was not found in the hospital registry.`);
           return;
@@ -169,9 +244,8 @@ export default function QRScannerModal() {
         }
 
         // Mode: Automatic Relocation or Manual Fallback
-        // Requirement 9: If user scans an equipment QR again before scanning a room QR
-        if (pendingEquipment) {
-          if (pendingEquipment.id === foundEquip.id) {
+        if (currentPending) {
+          if (currentPending.id === foundEquip.id) {
             // Scanned the same equipment again
             setMoveError(
               `"${foundEquip.name}" (${foundEquip.id}) is already selected for movement. Please scan the destination room QR next.`
@@ -183,8 +257,9 @@ export default function QRScannerModal() {
           return;
         }
 
-        // Normal Step 1: Remember selected equipment
-        setPendingEquipment(foundEquip);
+        // Normal Step 1: Select equipment and persist in context
+        setPendingMovementEquipment(foundEquip);
+        pendingEquipmentRef.current = foundEquip;
         setMoveSuccess(null);
         return;
       }
@@ -193,25 +268,30 @@ export default function QRScannerModal() {
       // CASE 2: ROOM QR SCANNED
       // -------------------------------------------------------------
       if (roomId) {
-        const foundRoom = rooms.find((r) => r.id === roomId || r.name.includes(roomId));
+        const foundRoom = rooms.find(
+          (r) =>
+            r.id.toUpperCase() === roomId.toUpperCase() ||
+            r.name.toLowerCase() === roomId.toLowerCase() ||
+            r.name.toLowerCase().includes(roomId.toLowerCase())
+        );
         if (!foundRoom) {
           setMoveError(`Room identifier "${roomId}" not found in modeled floorplan.`);
           return;
         }
 
-        // Check if an equipment is already remembered for movement
-        if (pendingEquipment) {
+        // Check if an equipment is already selected for movement
+        if (currentPending) {
           if (workflowMode === 'manual-fallback') {
-            // In manual fallback, just select the room and wait for user to click Confirm
+            // In manual fallback, stage the room and wait for user review
             setManualRoom(foundRoom);
             return;
           }
 
-          // Requirement 4: Automatic relocation immediately after destination room scan!
-          performAutomaticRelocation(pendingEquipment, foundRoom);
+          // Requirement 2: Immediate relocation after destination room scan without extra confirmation
+          performAutomaticRelocation(currentPending, foundRoom);
           return;
         } else {
-          // Room scanned without equipment selected first
+          // Requirement 4: Room scanned before equipment: clear instruction, no false move report
           setMoveError(
             `Destination Room "${foundRoom.name}" recognized. Please scan the Equipment QR code first to initiate a relocation.`
           );
@@ -227,16 +307,21 @@ export default function QRScannerModal() {
     [
       equipment,
       rooms,
-      pendingEquipment,
       workflowMode,
-      isProcessing,
+      parseQRPayload,
       performAutomaticRelocation,
+      setPendingMovementEquipment,
       setIsQRScannerOpen,
       setBookingTargetEquipment,
       setHandoverTargetEquipment,
       setInspectingEquipment,
     ]
   );
+
+  // Keep handleDecodedQRRef synchronized so camera callbacks never encounter stale closures
+  useEffect(() => {
+    handleDecodedQRRef.current = handleDecodedQR;
+  }, [handleDecodedQR]);
 
   // Camera start helper with multi-tier mobile camera fallback
   const startCamera = useCallback(async () => {
@@ -256,7 +341,7 @@ export default function QRScannerModal() {
           { facingMode: 'environment' },
           config,
           (decodedText) => {
-            handleDecodedQR(decodedText);
+            handleDecodedQRRef.current?.(decodedText);
           },
           () => {}
         );
@@ -271,7 +356,7 @@ export default function QRScannerModal() {
         { facingMode: 'user' },
         config,
         (decodedText) => {
-          handleDecodedQR(decodedText);
+          handleDecodedQRRef.current?.(decodedText);
         },
         () => {}
       );
@@ -318,7 +403,7 @@ export default function QRScannerModal() {
         {/* Header */}
         <div className="modal-header">
           <div className="modal-title">
-            <QrCode size={20} color="var(--accent-cyan)" />
+            <QrCode size={20} color="var(--accent-blue)" />
             <span>QR Scanner & Geolocation Relocation</span>
           </div>
           <button
@@ -391,8 +476,13 @@ export default function QRScannerModal() {
                   {pendingEquipment && (
                     <button
                       type="button"
-                      onClick={() => setPendingEquipment(null)}
-                      style={{ fontSize: 11, color: '#f87171', fontWeight: 600 }}
+                      onClick={() => {
+                        setPendingMovementEquipment(null);
+                        pendingEquipmentRef.current = null;
+                        setManualRoom(null);
+                        setConflictEquipment(null);
+                      }}
+                      style={{ fontSize: 11, color: 'var(--status-faulty)', fontWeight: 600 }}
                       title="Clear selection"
                     >
                       Clear
@@ -405,7 +495,7 @@ export default function QRScannerModal() {
                     <strong style={{ fontSize: 13, color: 'var(--text-primary)' }}>
                       {pendingEquipment.name}
                     </strong>
-                    <div style={{ fontSize: 11, color: 'var(--accent-cyan)', fontFamily: 'JetBrains Mono, monospace' }}>
+                    <div style={{ fontSize: 11, color: 'var(--accent-blue)', fontFamily: 'JetBrains Mono, monospace' }}>
                       {pendingEquipment.id} • Status: {pendingEquipment.status}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
@@ -425,20 +515,20 @@ export default function QRScannerModal() {
                 style={{
                   padding: 12,
                   borderRadius: 'var(--radius-sm)',
-                  backgroundColor: pendingEquipment ? 'rgba(0, 180, 216, 0.08)' : 'var(--bg-card)',
-                  border: `1px solid ${pendingEquipment ? 'rgba(0, 180, 216, 0.35)' : 'var(--border-card)'}`,
+                  backgroundColor: pendingEquipment ? 'var(--accent-blue-light)' : 'var(--bg-card)',
+                  border: `1px solid ${pendingEquipment ? 'rgba(29, 95, 193, 0.25)' : 'var(--border-card)'}`,
                   display: 'flex',
                   flexDirection: 'column',
                   gap: 4,
                 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 800, color: pendingEquipment ? 'var(--accent-cyan)' : 'var(--text-muted)' }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: pendingEquipment ? 'var(--accent-blue)' : 'var(--text-muted)' }}>
                   STEP 2: DESTINATION ROOM SCAN
                 </span>
 
                 {pendingEquipment ? (
                   <div>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent-cyan)' }}>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--accent-blue)' }}>
                       {workflowMode === 'auto-move' ? 'Scan room QR to instantly move!' : 'Scan room QR to review...'}
                     </div>
                     <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -467,14 +557,14 @@ export default function QRScannerModal() {
               style={{
                 padding: '16px',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                border: '2px solid rgba(245, 158, 11, 0.5)',
+                backgroundColor: 'var(--status-reserved-bg)',
+                border: '1px solid var(--status-reserved-border)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 10,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#fbbf24', fontWeight: 700, fontSize: 13.5 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--status-reserved)', fontWeight: 700, fontSize: 13.5 }}>
                 <AlertTriangle size={18} />
                 <span>Unfinished Movement In Progress</span>
               </div>
@@ -504,7 +594,7 @@ export default function QRScannerModal() {
                 <button
                   type="button"
                   className="btn-secondary"
-                  style={{ fontSize: 12, height: 34, padding: '0 12px', color: '#f87171' }}
+                  style={{ fontSize: 12, height: 34, padding: '0 12px', color: 'var(--status-faulty)' }}
                   onClick={() => {
                     setPendingEquipment(null);
                     setConflictEquipment(null);
@@ -522,8 +612,8 @@ export default function QRScannerModal() {
               style={{
                 padding: '16px',
                 borderRadius: 'var(--radius-md)',
-                backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                border: '2px solid rgba(16, 185, 129, 0.45)',
+                backgroundColor: 'var(--status-ready-bg)',
+                border: '1px solid var(--status-ready-border)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 8,
@@ -549,11 +639,11 @@ export default function QRScannerModal() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5 }}>
                 <span style={{ color: 'var(--text-muted)' }}>{moveSuccess.fromRoom}</span>
-                <ArrowRight size={13} color="var(--accent-cyan)" />
+                <ArrowRight size={13} color="var(--accent-blue)" />
                 <strong style={{ color: 'var(--status-ready)' }}>{moveSuccess.toRoom}</strong>
               </div>
 
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid rgba(16, 185, 129, 0.2)', paddingTop: 6 }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid var(--status-ready-border)', paddingTop: 6 }}>
                 Verified by <strong>{moveSuccess.staffName} ({moveSuccess.staffRole})</strong> at {moveSuccess.timestamp}. Inventory, floor maps, and audit trail immediately updated.
               </div>
             </div>
@@ -565,9 +655,9 @@ export default function QRScannerModal() {
               style={{
                 padding: '12px 14px',
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#f87171',
+                backgroundColor: 'var(--status-faulty-bg)',
+                border: '1px solid var(--status-faulty-border)',
+                color: 'var(--status-faulty)',
                 fontSize: 13,
                 display: 'flex',
                 alignItems: 'center',
@@ -605,10 +695,10 @@ export default function QRScannerModal() {
                   flexDirection: 'column',
                   alignItems: 'center',
                   gap: 12,
-                  color: '#94a3b8',
+                  color: 'var(--text-muted)',
                 }}
               >
-                <CameraOff size={32} color="#64748b" />
+                <CameraOff size={32} color="var(--text-secondary)" />
                 <span style={{ fontSize: 13 }}>Camera scanner is currently paused.</span>
                 <button
                   type="button"
@@ -641,7 +731,7 @@ export default function QRScannerModal() {
           </div>
 
           {cameraError && (
-            <div style={{ fontSize: 12, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 12, color: 'var(--status-reserved)', display: 'flex', alignItems: 'center', gap: 6 }}>
               <AlertTriangle size={14} />
               {cameraError}
             </div>
@@ -741,9 +831,17 @@ export default function QRScannerModal() {
                 type="button"
                 className="status-pill"
                 style={{ fontSize: 11, padding: '3px 8px' }}
-                onClick={() => handleDecodedQR('SMARTMED://EQUIPMENT/EQ-VENT-02')}
+                onClick={() => handleDecodedQR('SMARTMED://EQUIPMENT/EQ-ULT-01')}
               >
-                1. Scan EQ-VENT-02
+                1. Scan EQ-ULT-01 (Ultrasound)
+              </button>
+              <button
+                type="button"
+                className="status-pill"
+                style={{ fontSize: 11, padding: '3px 8px' }}
+                onClick={() => handleDecodedQR('SMARTMED://ROOM/RM-OT-02')}
+              >
+                2. Scan Room OT-2 (Auto-Moves!)
               </button>
               <button
                 type="button"
@@ -751,20 +849,12 @@ export default function QRScannerModal() {
                 style={{ fontSize: 11, padding: '3px 8px' }}
                 onClick={() => handleDecodedQR('SMARTMED://ROOM/RM-ER-101')}
               >
-                2. Scan Room ER-101 (Auto-Moves!)
+                Scan Room ER-101
               </button>
               <button
                 type="button"
                 className="status-pill"
-                style={{ fontSize: 11, padding: '3px 8px' }}
-                onClick={() => handleDecodedQR('SMARTMED://ROOM/RM-ICU-201')}
-              >
-                Scan Room ICU-201
-              </button>
-              <button
-                type="button"
-                className="status-pill"
-                style={{ fontSize: 11, padding: '3px 8px', color: '#f59e0b' }}
+                style={{ fontSize: 11, padding: '3px 8px', color: 'var(--status-reserved)' }}
                 onClick={() => handleDecodedQR('SMARTMED://EQUIPMENT/EQ-VENT-03')}
                 title="Test unfinished movement conflict handling"
               >
@@ -777,7 +867,7 @@ export default function QRScannerModal() {
         {/* Modal Footer */}
         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
           <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <UserCheck size={14} color="var(--accent-cyan)" />
+            <UserCheck size={14} color="var(--accent-blue)" />
             <span>
               Responsible Staff Persona:{' '}
               <strong style={{ color: 'var(--text-primary)' }}>{activePersona.name} ({activePersona.role})</strong>
